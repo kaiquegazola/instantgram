@@ -1,6 +1,6 @@
 # <img width="280" height="48" src="apps/site/public/img/readme-wordmark-aligned.svg" alt="instantgram">
 
-[![Release](https://img.shields.io/badge/release-v2026.10.07-198754?style=for-the-badge)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v2026.10.14-198754?style=for-the-badge)](CHANGELOG.md)
 [![For Instagram](https://img.shields.io/badge/for-Instagram-E4405F?style=for-the-badge)](https://www.instagram.com/)
 [![Powered by Preact](https://img.shields.io/badge/UI-Preact-673AB8?style=for-the-badge)](https://preactjs.com/)
 [![Firefox Lite](https://img.shields.io/badge/Firefox-Lite-FF7139?style=for-the-badge)](https://saschaheim.github.io/instantgram/#firefox)
@@ -21,6 +21,15 @@ No extension. No separate app. No account hand-off. Open Instagram, click instan
 1. Drag the instantgram button into your browser's bookmarks bar.
 2. Open a supported post, reel, story or profile on `instagram.com`.
 3. Click the bookmark and download the media you want.
+
+## The 2026.10.14 Release
+
+This release adapts profile and story lookups to Instagram API failures using the current Instaloader implementation as a reference.
+
+- **Embedded profile data:** reads `xig_user_by_username` from the current page or an anonymous profile-page HTML response, using `pk` as the user ID. This replaces the failed topsearch and usernameinfo fallback requests while retaining the username feed lookup.
+- **Story fallbacks:** uses a single story's media ID when its owner cannot be resolved, and tries Instaloader's GraphQL story query when the mobile story feed request fails. GraphQL image and video resources are converted for the existing viewer.
+- **Firefox Lite stays installable:** uses a text wordmark in the header to make room for the additional lookup logic.
+- **Validation:** 111 automated tests cover embedded profile data and API failures. Live compatibility with the reporting user's Instagram session has not yet been confirmed; this release does not claim to resolve every story failure in #54.
 
 ## The 2026.10.07 Release
 

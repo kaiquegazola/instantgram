@@ -1,3 +1,4 @@
+import { profilePageResponse } from "../utils/profilePage";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ProfileScanner } from "../../src/modules/ProfileScanner";
 import { loadFixture } from "../utils/fixtures";
@@ -73,7 +74,7 @@ describe("ProfileScanner", () => {
         expect(result?.slides).toHaveLength(1);
     });
 
-    it("reports found: false when both the feed fallback and the search fallback find no user id", async () => {
+    it("reports found: false when both the feed fallback and the profile HTML lookup fallback find no user id", async () => {
         setLocation("https://www.instagram.com/ghost_user/");
         stubAppId();
         const fetchMock = vi.fn()
@@ -94,7 +95,7 @@ describe("ProfileScanner", () => {
     // the feed fallback finds nothing, Instagram's search endpoint still
     // resolves the account, and the profile picture should load normally
     // instead of giving up.
-    it("resolves the profile via the search fallback when the feed fallback has no user id", async () => {
+    it("resolves the profile via the profile HTML lookup fallback when the feed fallback has no user id", async () => {
         setLocation("https://www.instagram.com/ghost_user/");
         document.body.innerHTML = "";
         const script = document.createElement("script");
@@ -103,10 +104,7 @@ describe("ProfileScanner", () => {
         document.body.appendChild(script);
         const fetchMock = vi.fn()
             .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [] }) })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ users: [{ user: { username: "ghost_user", id: "555444333" } }] }),
-            });
+            .mockResolvedValueOnce(profilePageResponse({ username: "ghost_user", id: "555444333" }));
         vi.stubGlobal("fetch", fetchMock);
 
         fetchDataFromApi.mockResolvedValueOnce(loadFixture("profile-user-info"));
@@ -154,7 +152,7 @@ describe("ProfileScanner", () => {
     // even once the id resolves via search. Search still returns
     // profile_pic_url, since profile pictures are public even for private
     // accounts, and must be used as a last-resort source.
-    it("resolves the profile via the search fallback's profile_pic_url for a private account with an empty getUserFromInfo response", async () => {
+    it("resolves the profile via the profile HTML lookup fallback's profile_pic_url for a private account with an empty getUserFromInfo response", async () => {
         setLocation("https://www.instagram.com/private_user/");
         document.body.innerHTML = "";
         const script = document.createElement("script");
@@ -163,12 +161,7 @@ describe("ProfileScanner", () => {
         document.body.appendChild(script);
         const fetchMock = vi.fn()
             .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [] }) })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({
-                    users: [{ user: { username: "private_user", id: "31857140226", profile_pic_url: "https://scontent.cdninstagram.com/v/search_owner_pic.jpg" } }],
-                }),
-            });
+            .mockResolvedValueOnce(profilePageResponse({ username: "private_user", id: "31857140226", profile_pic_url: "https://scontent.cdninstagram.com/v/search_owner_pic.jpg" }));
         vi.stubGlobal("fetch", fetchMock);
 
         fetchDataFromApi.mockResolvedValueOnce({ user: {}, status: "ok" });

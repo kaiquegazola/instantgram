@@ -20,6 +20,8 @@ export type { SettingsConfig } from "../settingsModal";
 export type { MediaViewerStore, UtilityViewerStore } from "./store";
 export { createMediaViewerStore, createUtilityViewerStore } from "./store";
 
+const FIREFOX_LITE = process.env.FIREFOX_LITE as unknown as boolean ?? false;
+
 export function LoadingBody() {
   return (
     <div class={uiClasses.loading}>
@@ -77,7 +79,7 @@ export function HeaderIconButton({
 }
 
 function BaseHeading({
-  left = (
+  left = FIREFOX_LITE ? <strong style="font-size:18px">instantgram</strong> : (
     <svg class="igb" viewBox={logoViewBox} role="img" aria-label="instantgram">
       <path class="igi" d={logoIconPath} />
       <path class="igg" transform={logoIconGlyphTransform} d={logoIconGlyphPath} />

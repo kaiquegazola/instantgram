@@ -3,6 +3,7 @@ import {
     FetchDataConfig,
     FetchRequestType,
     InstagramMediaInfoResponse,
+    InstagramMediaItem,
     InstagramProfilePicture
 } from "./instagramTypes";
 
@@ -115,14 +116,10 @@ export const fetchDataFromApi = async (config: FetchDataConfig): Promise<Instagr
             const id = "id" in config ? config.id : undefined;
             const isHighlight = "isHighlight" in config ? config.isHighlight : false;
 
-            // A regular (non-highlight) story's reel_ids must be the owner's
-            // user id. If that id couldn't be resolved (e.g. web_profile_info
-            // failed), there is no valid query to build here -- bail out
-            // instead of guessing, which previously misread "no id" as "this
-            // must be a highlight" and sent a nonsensical highlight-prefixed
-            // request for a media id (see issue #45).
+            // A story URL already identifies the media even when owner lookup fails.
             if (!isHighlight && !id) {
-                return null;
+                const storyId = window.location.pathname.match(/^\/stories\/(?!highlights\/)[^/]+\/(\d+)\/?$/)?.[1];
+                return storyId ? mediaInfoUrlPrefix+storyId+"/info/" : null;
             }
 
             const postId = articleNode ? findPostId(articleNode) : null;
@@ -147,7 +144,29 @@ export const fetchDataFromApi = async (config: FetchDataConfig): Promise<Instagr
     const url = await urlMap[type]?.();
     if (!url) return null;
 
-    return secureFetch(url, appId);
+    const result = await secureFetch(url, appId);
+    if (result || type !== "getReelsMediaFromFeed" || !("id" in config) || !config.id || config.isHighlight) {
+        return result;
+    }
+    // Same story query as Instaloader.get_stories; convert its web media fields
+    // into the mobile-shaped media objects consumed by our viewer.
+    const variables = JSON.stringify({ reel_ids: [config.id], precomposed_overlay: false });
+    const graphql = await secureFetch(wwwPrefix+"graphql/query/?query_hash=303a4ae99711322310f25250d988f3b7&variables="+encodeURIComponent(variables), appId);
+    const reels = graphql?.data?.reels_media as Array<{
+        user?: InstagramMediaItem["user"];
+        items?: Array<InstagramMediaItem & {
+            owner?: InstagramMediaItem["user"];
+            display_resources?: Array<{ src?: string }>;
+            video_resources?: Array<{ src?: string }>;
+        }>;
+    }> | undefined;
+    if (!Array.isArray(reels)) return null;
+    return { reels_media: reels.map(reel => ({ ...reel, items: reel.items?.map(item => ({
+        ...item,
+        user: item.owner,
+        image_versions2: { candidates: item.display_resources?.map(resource => ({ url: resource.src })) },
+        video_versions: item.video_resources?.map(resource => ({ url: resource.src })),
+    })) })) };
 };
 
 export const secureFetch = async (url: string, appId: string, init?: RequestInit) => {
@@ -192,35 +211,48 @@ type PictureOwner = {
     hd_profile_pic_versions?: InstagramProfilePicture[];
 };
 
-type SearchOwner = PictureOwner & {
-    id?: string;
+type UsernameOwner = PictureOwner & {
+    pk?: string | number;
+    id?: string | number;
     username?: string;
 };
 
-/**
- * Resolves a username to its numeric user id via Instagram's web search
- * endpoint, and returns the matched search-result user with it. Some accounts
- * trigger a deleted-schema error ("ig_business_category_subvertical") from
- * web_profile_info even though search still returns them. For private
- * accounts, /users/{id}/info/ comes back completely empty
- * ({"user":{},"status":"ok"}, confirmed via a real captured response) even
- * once the id resolves fine, and the feed lookup can't help either since a
- * private account's feed is empty for a non-follower -- search still returns
- * the (150px) profile_pic_url, profile pictures being public even for private
- * accounts, so it doubles as a last-resort picture source.
+/** Read the profile data embedded in HTML, as Instaloader's from_username does.
+ * Browser fetch cannot set Instaloader's Sec-Fetch navigation headers, so the
+ * existing page is checked first and an anonymous HTML fetch is only a fallback.
  */
-const fetchSearchOwner = async (userName: string): Promise<SearchOwner | null> => {
-    const appId = findAppId();
-    if (!appId) {
+export const findEmbeddedProfile = (page: Document, userName: string): UsernameOwner | null => {
+    const find = (value: unknown): UsernameOwner | null => {
+        if (!value || typeof value !== "object") return null;
+        const record = value as Record<string, unknown>;
+        const user = record.xig_user_by_username as UsernameOwner | undefined;
+        if (user?.username?.toLowerCase() === userName.toLowerCase() && user.pk != null) return user;
+        for (const child of Object.values(record)) {
+            const match = find(child);
+            if (match) return match;
+        }
         return null;
+    };
+    for (const script of page.querySelectorAll('script[type="application/json"]')) {
+        try {
+            const user = find(JSON.parse(script.textContent || "null"));
+            if (user) return user;
+        } catch { /* Malformed or unrelated scripts are not profile data. */ }
     }
+    return null;
+};
 
-    const url = wwwPrefix+"web/search/topsearch/?query="+encodeURIComponent(userName);
-    const payload = await secureFetch(url, appId);
-    const users = payload?.users as Array<{ user?: SearchOwner }> | undefined;
-    const wanted = userName.toLowerCase();
-    const match = users?.find(entry => entry.user?.username?.toLowerCase() === wanted && entry.user?.id);
-    return match?.user ?? null;
+const fetchPageOwner = async (userName: string): Promise<UsernameOwner | null> => {
+    try {
+        const response = await fetch(wwwPrefix+encodeURIComponent(userName)+"/", {
+            headers: { Accept: "text/html" },
+            credentials: "omit",
+            signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) return null;
+        const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        return findEmbeddedProfile(page, userName);
+    } catch { return null; }
 };
 
 type FeedOwner = PictureOwner & {
@@ -242,7 +274,7 @@ const fetchFeedOwner = async (userName: string): Promise<FeedOwner | null> => {
 
 /**
  * Resolves a username to its numeric user id and owner object, feed first and
- * search as a fallback. Neither step needs web_profile_info, the brittle,
+ * embedded profile HTML as a fallback. Neither step needs web_profile_info, the brittle,
  * per-account-gated endpoint that returns 400/401 for otherwise-valid public
  * accounts (see https://github.com/jackwener/opencli/issues/2147 and
  * instaloader#2482). The owner is kept because some business/creator accounts
@@ -250,11 +282,13 @@ const fetchFeedOwner = async (userName: string): Promise<FeedOwner | null> => {
  * field at all, in which case it is the only remaining picture source.
  */
 export const resolveProfile = async (userName: string) => {
+    const embedded = findEmbeddedProfile(document, userName);
+    if (embedded) return { userId: String(embedded.pk), owner: embedded };
     const feed = await fetchFeedOwner(userName);
     const feedId = feed?.pk ?? feed?.id;
     if (feedId != null) return { userId: String(feedId), owner: feed };
-    const search = await fetchSearchOwner(userName);
-    return { userId: search?.id ?? null, owner: search };
+    const owner = await fetchPageOwner(userName);
+    return { userId: owner?.pk != null ? String(owner.pk) : null, owner };
 };
 
 // PolarisProfilePageContentQuery -- the query instagram.com's own profile page
