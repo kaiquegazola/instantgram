@@ -1,3 +1,4 @@
+import { buttonIcon } from "../helpers/icons";
 import { Program } from "../App";
 import { h } from "preact";
 import { Module, NO_TARGET_FOUND } from "./Module";
@@ -53,9 +54,9 @@ const SETTINGS_PROGRAM_KEYS = {
     s3: "noMultiStories",
 } as const;
 
-const SETTINGS_ICON_HTML = "&#9881;";
-const EXPAND_ICON_HTML = "&#9974;";
-const COLLAPSE_ICON_HTML = '<svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2><path d="M3 3l6 6M9 4v5H4M21 3l-6 6m0-5v5h5M3 21l6-6M4 15h5v5M21 21l-6-6m0 5v-5h5"/></svg>';
+const SETTINGS_ICON_HTML = buttonIcon("M10 2h4v3l2 1 2-2 2 2-2 2 1 2h3v4h-3l-1 2 2 2-2 2-2-2-2 1v3h-4v-3l-2-1-2 2-2-2 2-2-1-2H2v-4h3l1-2-2-2 2-2 2 2 2-1z M15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0");
+const EXPAND_ICON_HTML = buttonIcon("M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6");
+const COLLAPSE_ICON_HTML = buttonIcon("M4 9h5V4m6 0v5h5M4 15h5v5m6 0v-5h5");
 const SETTINGS_TITLE = localize("ms.t");
 
 /**

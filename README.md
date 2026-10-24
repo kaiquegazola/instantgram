@@ -1,6 +1,6 @@
 # <img width="280" height="48" src="apps/site/public/img/readme-wordmark-aligned.svg" alt="instantgram">
 
-[![Release](https://img.shields.io/badge/release-v2026.10.14-198754?style=for-the-badge)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v2026.10.24-198754?style=for-the-badge)](CHANGELOG.md)
 [![For Instagram](https://img.shields.io/badge/for-Instagram-E4405F?style=for-the-badge)](https://www.instagram.com/)
 [![Powered by Preact](https://img.shields.io/badge/UI-Preact-673AB8?style=for-the-badge)](https://preactjs.com/)
 [![Firefox Lite](https://img.shields.io/badge/Firefox-Lite-FF7139?style=for-the-badge)](https://saschaheim.github.io/instantgram/#firefox)
@@ -21,6 +21,19 @@ No extension. No separate app. No account hand-off. Open Instagram, click instan
 1. Drag the instantgram button into your browser's bookmarks bar.
 2. Open a supported post, reel, story or profile on `instagram.com`.
 3. Click the bookmark and download the media you want.
+
+## The 2026.10.24 Release
+
+Instagram changed its API responses, which broke story downloads for some users. This release includes [Kaique Gazola's fix (#55)](https://github.com/saschaheim/instantgram/pull/55).
+
+- Story owners are now looked up in the page data first. The username feed, which sometimes returns a spam error, is only used as a last resort.
+- Empty story responses trigger alternative requests. If those fail, Instantgram tries to load the individual story from its URL.
+- Header icons now use SVGs instead of font characters, so the gear and arrows have the same size and alignment on macOS and Windows.
+- 121 tests pass. Firefox Lite remains below the bookmarklet size limit at 65,505 characters.
+
+The fix worked in the contributor's session. [Issue #54](https://github.com/saschaheim/instantgram/issues/54) stays open until the other affected users confirm it works for them too.
+
+To update, replace your bookmark from the [install page][1]. Firefox users should use **Firefox Lite**.
 
 ## The 2026.10.14 Release
 

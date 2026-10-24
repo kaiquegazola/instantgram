@@ -1,6 +1,6 @@
 {
   "name": "@instantgram/site",
-  "version": "2026.10.14",
+  "version": "2026.10.24",
   "private": true,
   "type": "module",
   "scripts": {

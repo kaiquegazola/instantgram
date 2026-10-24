@@ -1,3 +1,4 @@
+import { buttonIcon } from "../../helpers/icons";
 import { h } from "preact";
 import { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -213,7 +214,7 @@ const buildSettingsRight = (version: string, closeSettings: () => void, onLocale
         </option>
       ))}
     </select>
-    <HeaderIconButton className="ima ib" innerHtml="<i>&#8592;</i>" onClick={closeSettings} />
+    <HeaderIconButton className="ima" innerHtml={buttonIcon("M20 12H4m7-7-7 7 7 7")} onClick={closeSettings} />
   </>
 );
 
